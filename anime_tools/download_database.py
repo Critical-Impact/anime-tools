@@ -6,7 +6,8 @@ from cement import fs
 
 def download_database(app):
     app.log.info('Checking offline database')
-    db_cache_path = fs.abspath('./../db-cache')
+    db_cache_path = fs.abspath('~/.config/anime_tools/db-cache')
+    app.log.info('Checking in ' + db_cache_path)
     fs.ensure_dir_exists(db_cache_path)
     offline_database = os.path.join(db_cache_path,"offline_database.json")
     should_download_database: bool = False

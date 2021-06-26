@@ -24,6 +24,13 @@ $ make virtualenv
 $ source env/bin/activate
 
 
+### configuration
+
+Anime Tools needs to be configured before it will run, it also caches the offline database and as such both those paths need to be mounted as volumes.  
+
+Copy config/anime_tools.yml.example to ~/.config/anime_tools/anime_tools.yml and fill in the missing plex details
+
+
 ### run anime_tools cli application
 
 $ anime_tools --help
@@ -55,15 +62,17 @@ $ make dist
 $ make dist-upload
 ```
 
-## Deployments
+## Running Anime Tools
 
 ### Docker
 
-Included is a basic `Dockerfile` for building and distributing `Anime Tools`,
-and can be built with the included `make` helper:
+Included is a basic `Dockerfile` for running `Anime Tools`,
+and can be built with the included `make` helper:  
+Anime Tools needs to be configured before it will run, it also caches the offline database and as such both those paths need to be mounted as volumes.  
 
+Copy config/anime_tools.yml.example to config/anime_tools.yml and fill in the missing plex details
 ```
-$ make docker
-
-$ docker run -it anime_tools --help
+$ make docker # on systems with make
+$ docker build -t anime_tools:latest . # on systems with no make
+$ docker run -v ./config:/etc/anime_tools -v ./db-cache:/root/.config/anime_tools/db-cache -it anime_tools
 ```

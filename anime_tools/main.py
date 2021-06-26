@@ -39,7 +39,6 @@ class AnimeTools(App):
             ('pre_run', connect_plex, 0),
         ]
 
-
         # configuration handler
         config_handler = 'yaml'
 
