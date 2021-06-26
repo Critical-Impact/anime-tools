@@ -1,15 +1,11 @@
-from argparse import Namespace
-
 import plexapi.exceptions
 from cement import Controller, ex, fs
 import os
 import json
-import re, string;
+import re, string
 
-from plexapi.library import LibrarySection
 from plexapi.server import PlexServer
 
-indexedDict = {}
 
 class Genres(Controller):
     class Meta:
@@ -20,132 +16,118 @@ class Genres(Controller):
     @ex(
         help='update genres on a single show',
         arguments=[
-            (['library_name'],{'help': 'the name of the library to update','action': 'store'}),
-            (['show_name'],{'help': 'the name of the show to update','action': 'store'})
+            (['library_name'], {'help': 'the name of the library to update', 'action': 'store'}),
+            (['show_name'], {'help': 'the name of the show to update', 'action': 'store'})
         ],
     )
     def update(self):
-        libraryName = self.app.pargs.library_name
-        showName = self.app.pargs.show_name
+        indexed_dict = {}
+        library_name = self.app.pargs.library_name
+        show_name = self.app.pargs.show_name
         db_cache_path = fs.abspath('~/.config/anime_tools/db-cache')
-        self.app.log.info('Updating : %s on %s' % (showName, libraryName))
+        self.app.log.info('Attempting to update show %s on library %s' % (show_name, library_name))
         offline_database = os.path.join(db_cache_path, "offline_database.json")
-        plex_token = self.app.config.get('anime_tools', 'plex_token')
-        pattern = re.compile('[\W_]+')
 
+        # Sanitize all the titles of the shows and their other given titles in the offline database and index them
         with open(offline_database, encoding='utf-8') as json_file:
             data = json.load(json_file)
-            actualData = data['data']
-            for item in actualData:
-                itemTitle = item['title'].strip().lower()
-                itemTitle = pattern.sub('', itemTitle)
-                itemTitle = re.sub("\s\s+", '', itemTitle)
-                itemTitle = itemTitle.replace(" ", "")
-                itemTitle = itemTitle.strip().lower()
-                indexedDict[itemTitle] = item
+            actual_data = data['data']
+            for item in actual_data:
+                item_title = item['title']
+                item_title = self.sanitize_title(item_title)
+                indexed_dict[item_title] = item
                 if "animeSeason" in item:
-                    itemTitle = itemTitle + " (" + str(item["animeSeason"]["year"]) + ")"
-                    itemTitle = pattern.sub('', itemTitle)
-                    itemTitle = re.sub("\s\s+", '', itemTitle)
-                    itemTitle = itemTitle.replace(" ", "")
-                    itemTitle = itemTitle.strip().lower()
-                    indexedDict[itemTitle] = item
+                    item_title = item['title'] + " (" + str(item["animeSeason"]["year"]) + ")"
+                    item_title = self.sanitize_title(item_title)
+                    indexed_dict[item_title] = item
                 for synonym in item['synonyms']:
-                    synonymTitle = synonym.strip().lower()
-                    synonymTitle = pattern.sub('', synonymTitle)
-                    synonymTitle = re.sub("\s\s+", '', synonymTitle)
-                    synonymTitle = synonymTitle.replace(" ", "")
-                    synonymTitle = synonymTitle.strip().lower()
-                    indexedDict[synonymTitle] = item
+                    synonym_title = synonym
+                    synonym_title = self.sanitize_title(synonym_title)
+                    indexed_dict[synonym_title] = item
                     if "animeSeason" in item:
-                        synonymTitle = synonymTitle + " (" + str(item["animeSeason"]["year"]) + ")"
-                        synonymTitle = pattern.sub('', synonymTitle)
-                        synonymTitle = re.sub("\s\s+", '', synonymTitle)
-                        synonymTitle = re.sub(" ", '', synonymTitle)
-                        synonymTitle = synonymTitle.replace(" ", "")
-                        synonymTitle = synonymTitle.strip().lower()
-                        indexedDict[synonymTitle] = item
-        plex_server: PlexServer = self.app.config.get('anime_tools','plex_server')
+                        synonym_title = synonym + " (" + str(item["animeSeason"]["year"]) + ")"
+                        synonym_title = self.sanitize_title(synonym_title)
+                        indexed_dict[synonym_title] = item
+
+        plex_server: PlexServer = self.app.config.get('anime_tools', 'plex_server')
         try:
-            anime = plex_server.library.section(libraryName)
+            library = plex_server.library.section(library_name)
+
         except plexapi.exceptions.NotFound as e:
-            self.app.log.info(f"Plex library {libraryName} not found.")
+            self.app.log.info(f"Plex library {library_name} not found.")
             self.app.close(1)
-        animeItem: LibrarySection
-        for animeItem in anime.search(title=showName):
-            plexTitle = animeItem.title.strip().lower()
-            plexTitle = pattern.sub('', plexTitle)
-            plexTitle = re.sub("\s\s+", '', plexTitle)
-            plexTitle = plexTitle.replace(" ", "")
-            plexTitle = plexTitle.strip().lower()
-            if plexTitle in indexedDict:
-                indexedItem = indexedDict[plexTitle]
-                self.app.log.info(f"Found {animeItem.title} in json, updating genres.")
-                animeItem.addGenre(indexedItem['tags'])
+            return
+
+        results = library.search(title=show_name)
+
+        if len(results) == 0:
+            self.app.log.info(f"Show {show_name} could not be found in library {library_name}.")
+
+        for library_item in results:
+            plex_title = self.sanitize_title(library_item.title)
+            if plex_title in indexed_dict:
+                indexed_item = indexed_dict[plex_title]
+                self.app.log.info(f"Found {library_item.title} in json, updating genres.")
+                library_item.addGenre(indexed_item['tags'])
             else:
-                self.app.log.info(f"Could not find {animeItem.title}, searching for {plexTitle} in json.")
+                self.app.log.info(f"Could not find {library_item.title}, searching for {plex_title} in json.")
+
     @ex(
         help='update genres for an entire library',
         arguments=[
-            (['library_name'],{'help': 'the name of the library to update','action': 'store'})
+            (['library_name'], {'help': 'the name of the library to update', 'action': 'store'})
         ],
     )
     def update_all(self):
-        libraryName = self.app.pargs.library_name
+        indexed_dict = {}
+        library_name = self.app.pargs.library_name
         db_cache_path = fs.abspath('~/.config/anime_tools/db-cache')
-        self.app.log.info('Updating : %s on %s' % (showName, libraryName))
+        self.app.log.info('Updating all shows on %s' % (library_name))
         offline_database = os.path.join(db_cache_path, "offline_database.json")
-        plex_token = self.app.config.get('anime_tools', 'plex_token')
-        pattern = re.compile('[\W_]+')
 
+        # Sanitize all the titles of the shows and their other given titles in the offline database and index them
         with open(offline_database, encoding='utf-8') as json_file:
             data = json.load(json_file)
-            actualData = data['data']
-            for item in actualData:
-                itemTitle = item['title'].strip().lower()
-                itemTitle = pattern.sub('', itemTitle)
-                itemTitle = re.sub("\s\s+", '', itemTitle)
-                itemTitle = itemTitle.replace(" ", "")
-                itemTitle = itemTitle.strip().lower()
-                indexedDict[itemTitle] = item
+            actual_data = data['data']
+            for item in actual_data:
+                item_title = item['title']
+                item_title = self.sanitize_title(item_title)
+                indexed_dict[item_title] = item
                 if "animeSeason" in item:
-                    itemTitle = itemTitle + " (" + str(item["animeSeason"]["year"]) + ")"
-                    itemTitle = pattern.sub('', itemTitle)
-                    itemTitle = re.sub("\s\s+", '', itemTitle)
-                    itemTitle = itemTitle.replace(" ", "")
-                    itemTitle = itemTitle.strip().lower()
-                    indexedDict[itemTitle] = item
+                    item_title = item['title'] + " (" + str(item["animeSeason"]["year"]) + ")"
+                    item_title = self.sanitize_title(item_title)
+                    indexed_dict[item_title] = item
                 for synonym in item['synonyms']:
-                    synonymTitle = synonym.strip().lower()
-                    synonymTitle = pattern.sub('', synonymTitle)
-                    synonymTitle = re.sub("\s\s+", '', synonymTitle)
-                    synonymTitle = synonymTitle.replace(" ", "")
-                    synonymTitle = synonymTitle.strip().lower()
-                    indexedDict[synonymTitle] = item
+                    synonym_title = synonym
+                    synonym_title = self.sanitize_title(synonym_title)
+                    indexed_dict[synonym_title] = item
                     if "animeSeason" in item:
-                        synonymTitle = synonymTitle + " (" + str(item["animeSeason"]["year"]) + ")"
-                        synonymTitle = pattern.sub('', synonymTitle)
-                        synonymTitle = re.sub("\s\s+", '', synonymTitle)
-                        synonymTitle = re.sub(" ", '', synonymTitle)
-                        synonymTitle = synonymTitle.replace(" ", "")
-                        synonymTitle = synonymTitle.strip().lower()
-                        indexedDict[synonymTitle] = item
-        plex_server: PlexServer = self.app.config.get('anime_tools','plex_server')
+                        synonym_title = synonym + " (" + str(item["animeSeason"]["year"]) + ")"
+                        synonym_title = self.sanitize_title(synonym_title)
+                        indexed_dict[synonym_title] = item
+
+        plex_server: PlexServer = self.app.config.get('anime_tools', 'plex_server')
         try:
-            anime = plex_server.library.section(libraryName)
+            library = plex_server.library.section(library_name)
+
         except plexapi.exceptions.NotFound as e:
-            self.app.log.info(f"Plex library {libraryName} not found.")
+            self.app.log.info(f"Plex library {library_name} not found.")
             self.app.close(1)
-        animeItem: LibrarySection
-        for animeItem in anime.search():
-            plexTitle = animeItem.title.strip().lower()
-            plexTitle = pattern.sub('', plexTitle)
-            plexTitle = re.sub("\s\s+", '', plexTitle)
-            plexTitle = plexTitle.replace(" ", "")
-            plexTitle = plexTitle.strip().lower()
-            if plexTitle in indexedDict:
-                indexedItem = indexedDict[plexTitle]
-                self.app.log.info(f"Found {animeItem.title} in json, updating genres.")
-                animeItem.addGenre(indexedItem['tags'])
+            return
+
+        for library_item in library.search():
+            plex_title = self.sanitize_title(library_item.title)
+            if plex_title in indexed_dict:
+                indexed_item = indexed_dict[plex_title]
+                self.app.log.info(f"Found {library_item.title} in json, updating genres.")
+                library_item.addGenre(indexed_item['tags'])
             else:
-                self.app.log.info(f"Could not find {animeItem.title}, searching for {plexTitle} in json.")
+                self.app.log.info(f"Could not find {library_item.title}, searching for {plex_title} in json.")
+
+    def sanitize_title(self, title):
+        pattern = re.compile('[\W_]+')
+        title = pattern.sub('', title)
+        title = re.sub("\s\s+", '', title)
+        title = title.replace(" ", "")
+        title = title.strip().lower()
+        return title

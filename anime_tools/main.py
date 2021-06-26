@@ -36,7 +36,7 @@ class AnimeTools(App):
 
         hooks = [
             ('post_setup', download_database, 0),
-            ('pre_run', connect_plex, 0),
+            ('post_setup', connect_plex, 0),
         ]
 
         # configuration handler
