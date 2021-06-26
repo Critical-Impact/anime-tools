@@ -1,6 +1,10 @@
-# Provides various tools surrounding plex and anime
+##About
 
-## Local Installation
+Anime Tools is a tool I've written to attempt to fix some small issues I have with how anime's meta data on plex is currently obtained. I use a custom metadata agent for plex(hama) to get the correct information for shows which generally works.  
+That said, I find that sometimes the genre information retrieved is pulled from tvdb due to anidb rate limiting, or some other issue I haven't worked out.  
+The first release provides a way of updating individual genres on shows or updating all the genres in an entire library.
+
+### Local Installation
 
 ```
 $ pip install -r requirements.txt
