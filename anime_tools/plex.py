@@ -15,7 +15,6 @@ def connect_plex(app):
     else:
         plex_token = app.config.get('anime_tools', 'plex_token')
         plex_address = app.config.get('anime_tools', 'plex_address')
-        plex_libraries = app.config.get('anime_tools', 'plex_libraries')
         try:
             plex = PlexServer(plex_address, plex_token)
         except BadRequest:

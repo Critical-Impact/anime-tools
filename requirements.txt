@@ -3,3 +3,5 @@ jinja2
 pyyaml
 colorlog
 PlexAPI
+fuzzywuzzy
+python-Levenshtein

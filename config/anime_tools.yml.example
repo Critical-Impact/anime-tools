@@ -2,14 +2,11 @@
 ---
 
 anime_tools:
+  # use_fuzzy_matching: false
+  # fuzzy_ratio: 95
+  # plex_token: null
+  # plex_address: null
 
-#Plex API
-# plex.username: null
-# plex.token: null
-# plex.address: null
-
-#Anime Database
-# anime.database_location: null
 
 ### Toggle application level debug (does not toggle framework debugging)
 # debug: false
