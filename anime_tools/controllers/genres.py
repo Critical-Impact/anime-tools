@@ -105,17 +105,19 @@ class Genres(Controller):
                 item_title = self.sanitize_title(item_title)
                 indexed_dict[item_title] = item
                 if "animeSeason" in item:
-                    item_title = item['title'] + " (" + str(item["animeSeason"]["year"]) + ")"
-                    item_title = self.sanitize_title(item_title)
-                    indexed_dict[item_title] = item
+                    if "year" in item["animeSeason"]:
+                        item_title = item['title'] + " (" + str(item["animeSeason"]["year"]) + ")"
+                        item_title = self.sanitize_title(item_title)
+                        indexed_dict[item_title] = item
                 for synonym in item['synonyms']:
                     synonym_title = synonym
                     synonym_title = self.sanitize_title(synonym_title)
                     indexed_dict[synonym_title] = item
                     if "animeSeason" in item:
-                        synonym_title = synonym + " (" + str(item["animeSeason"]["year"]) + ")"
-                        synonym_title = self.sanitize_title(synonym_title)
-                        indexed_dict[synonym_title] = item
+                        if "year" in item["animeSeason"]:
+                            synonym_title = synonym + " (" + str(item["animeSeason"]["year"]) + ")"
+                            synonym_title = self.sanitize_title(synonym_title)
+                            indexed_dict[synonym_title] = item
         return indexed_dict
 
     def parse_results(self, indexed_dict, results):
