@@ -19,7 +19,7 @@ def download_database(app):
         should_download_database = True
     if should_download_database:
         testfile = URLopener()
-        testfile.retrieve("https://raw.githubusercontent.com/manami-project/anime-offline-database/master/anime-offline-database.json", offline_database)
+        testfile.retrieve("https://github.com/manami-project/anime-offline-database/releases/download/latest/anime-offline-database.json", offline_database)
         app.log.info('Offline database downloaded')
     else:
         app.log.info('Cached database is up to date')
